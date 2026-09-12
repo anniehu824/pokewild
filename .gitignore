@@ -1,0 +1,9 @@
+.DS_Store
+.env
+.env.*
+*.log
+*backup*.json
+pokewild-adventure.json
+node_modules/
+work/
+.vscode/
