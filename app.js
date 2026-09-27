@@ -1,8 +1,9 @@
 /* Pokéwild · a local-first, zero-build Pokémon fan game. */
 'use strict';
-const APP_VERSION = '1.3.2';
+const APP_VERSION = '1.4.0';
 const E = window.PokeEngine;
 const A = window.AdventureEngine;
+const T = window.TransformationEngine;
 const POKEMON = window.POKEMON_DATA;
 const BY_ID = Object.fromEntries(POKEMON.map(p => [p.id, p]));
 const LOCAL_ART = new Set(window.LOCAL_ART);
@@ -62,9 +63,9 @@ function owned(id) { return state.owned.find(p => p.id === Number(id)); }
 function befriended(id) { return state.caught.includes(Number(id)); }
 function readyToEvolve(p) { return E.evolutionOptions(p, EVOLUTIONS).some(path => path.ready); }
 function rank() { return 1 + Math.floor(state.trainerXP / 70); }
-function hpBar(p, cls = '') {
-  const max = E.maxHP(BY_ID[p.id], p.level), ratio = p.hp / max;
-  return `<div class="hp-track ${ratio <= .25 ? 'critical' : ratio <= .5 ? 'low' : ''} ${cls}" role="meter" aria-label="${esc(BY_ID[p.id].name)} health" aria-valuemin="0" aria-valuemax="${max}" aria-valuenow="${p.hp}"><span style="width:${ratio * 100}%"></span></div>`;
+function hpBar(p, cls = '', inBattle = false) {
+  const {hp, max} = inBattle ? battleHealth(p) : {hp:p.hp,max:E.maxHP(BY_ID[p.id],p.level)}, ratio = hp / max;
+  return `<div class="hp-track ${ratio <= .25 ? 'critical' : ratio <= .5 ? 'low' : ''} ${cls}" role="meter" aria-label="${esc(BY_ID[p.id].name)} health" aria-valuemin="0" aria-valuemax="${max}" aria-valuenow="${hp}"><span style="width:${ratio * 100}%"></span></div>`;
 }
 function toast(message) {
   clearTimeout(toastTimer);
@@ -188,9 +189,9 @@ function renderDex() {
   renderDexResults();
 }
 function renderTeam() {
-  main.innerHTML = `<div class="page-heading"><div><h1>Better, together.</h1><p>Choose your partner. Build your team. Make the journey your own.</p></div><button class="btn secondary" data-action="heal">${icon('heart')}Heal team · free</button></div><div class="info-banner">${icon('team')}<span>Your partner starts each battle. Take up to six Pokémon with you, and swap with anyone at camp whenever you like.</span></div>${evolutionNotice(state.team)}<div class="team-grid">${state.team.map(id => {
+  main.innerHTML = `<div class="page-heading"><div><h1>Better, together.</h1><p>Choose your partner. Build your team. Make the journey your own.</p></div><button class="btn secondary" data-action="heal">${icon('heart')}Heal team · free</button></div><div class="info-banner">${icon('team')}<span>Your partner starts each battle. Take up to six Pokémon with you, and swap with anyone at camp whenever you like.</span></div><div class="team-form-guide"><p><strong>New: Mega Evolution & Gigantamax.</strong><br>Eligible buddies can transform in battle. Your fully evolved starters can do both!</p><button class="btn secondary small" data-action="form-guide">${icon('sparkles')}Explore battle forms</button></div>${evolutionNotice(state.team)}<div class="team-grid">${state.team.map(id => {
     const p = owned(id), species = BY_ID[id], lead = state.lead === id;
-    return `<article class="team-card ${lead ? 'is-partner' : ''}"><div class="team-card-top"><span class="level">LEVEL ${p.level}</span>${lead ? `<span class="partner-label">${icon('star')}YOUR PARTNER</span>` : `<span class="card-id">#${number(id)}</span>`}</div><div class="team-card-art">${art(species)}</div><h3>${esc(species.name)}</h3><div class="types">${types(species)}</div><div class="health-label"><span>${p.hp === 0 ? 'Ready for a rest' : 'Ready for adventure'}</span><strong>${p.hp} / ${E.maxHP(species, p.level)} HP</strong></div>${hpBar(p)}<div class="xp-label"><span>${p.level === 100 ? 'Maximum level' : 'Next level'}</span><span>${p.level === 100 ? '100' : `${p.xp} / ${E.nextXP(p.level)} XP`}</span></div><div class="xp-track"><span style="width:${p.level === 100 ? 100 : p.xp / E.nextXP(p.level) * 100}%"></span></div>${evolutionSummary(p)}${shinyLabel(p)}<div class="team-extra-actions"><button class="text-link" data-action="move-picker" data-id="${id}">${icon('swords')}Choose moves</button><button class="text-link" data-action="camp-open" data-id="${id}">${icon('heart')}Buddy camp · ${p.friendship||0}</button></div><div class="team-card-actions"><button class="btn ${lead ? 'ghost' : 'secondary'} small" data-action="partner" data-id="${id}" ${lead ? 'disabled' : ''}>${icon(lead ? 'check' : 'star')}${lead ? 'Your partner' : 'Make partner'}</button><button class="remove-button" data-action="remove-team" data-id="${id}" ${state.team.length < 2 ? 'disabled' : ''}>To camp</button></div></article>`;
+    return `<article class="team-card ${lead ? 'is-partner' : ''}"><div class="team-card-top"><span class="level">LEVEL ${p.level}</span>${lead ? `<span class="partner-label">${icon('star')}YOUR PARTNER</span>` : `<span class="card-id">#${number(id)}</span>`}</div><div class="team-card-art">${art(species)}</div><h3>${esc(species.name)}</h3><div class="types">${types(species)}</div><div class="health-label"><span>${p.hp === 0 ? 'Ready for a rest' : 'Ready for adventure'}</span><strong>${p.hp} / ${E.maxHP(species, p.level)} HP</strong></div>${hpBar(p)}<div class="xp-label"><span>${p.level === 100 ? 'Maximum level' : 'Next level'}</span><span>${p.level === 100 ? '100' : `${p.xp} / ${E.nextXP(p.level)} XP`}</span></div><div class="xp-track"><span style="width:${p.level === 100 ? 100 : p.xp / E.nextXP(p.level) * 100}%"></span></div>${evolutionSummary(p)}${formLink(id)}${shinyLabel(p)}<div class="team-extra-actions"><button class="text-link" data-action="move-picker" data-id="${id}">${icon('swords')}Choose moves</button><button class="text-link" data-action="camp-open" data-id="${id}">${icon('heart')}Buddy camp · ${p.friendship||0}</button></div><div class="team-card-actions"><button class="btn ${lead ? 'ghost' : 'secondary'} small" data-action="partner" data-id="${id}" ${lead ? 'disabled' : ''}>${icon(lead ? 'check' : 'star')}${lead ? 'Your partner' : 'Make partner'}</button><button class="remove-button" data-action="remove-team" data-id="${id}" ${state.team.length < 2 ? 'disabled' : ''}>To camp</button></div></article>`;
   }).join('')}${Array.from({ length: 6 - state.team.length }, (_, i) => `<button class="team-empty" data-action="open-dex"><span>${icon('plus')}<h3>A friend you haven’t met.</h3><p>Team spot ${state.team.length + i + 1} · Find a Pokémon</p></span></button>`).join('')}</div><section class="storage-section"><div class="section-heading"><div><h2>Back at camp</h2></div><span class="widget-subtitle">${state.owned.length} Pokémon in your collection</span></div><label class="searchbox">${icon('search')}<input id="storage-search" type="search" placeholder="Find a friend in your collection…" aria-label="Search your caught Pokémon" value="${esc(storageQuery)}"></label><div id="storage-results" style="margin-top:18px"></div></section>`;
   renderStorage();
 }
@@ -228,6 +229,7 @@ function route() {
   if (destination === 'battle' && battle) { page = 'battle'; }
   else {
     if (battle && !battle.done) toast('You headed back safely. Heal at camp before your next adventure.');
+    clearTransformation();
     battle = null;
     const previous = page;
     page = ['explore', 'team', 'pokedex', 'legendary', 'bag', 'league', 'world', 'quests', 'camp', 'wardrobe', 'tournaments'].includes(destination) ? destination : 'explore';
@@ -285,7 +287,7 @@ function detail(id) {
   const p = BY_ID[id];
   if (!p) return;
   const friend = owned(id);
-  openModal(`<div class="modal-body"><div class="modal-header"><span class="detail-number">${esc(REGIONS[p.gen])} · #${number(id)}</span><button class="icon-button" data-action="close-modal" aria-label="Close Pokémon details">${icon('close')}</button></div><div class="detail-art">${art(p)}</div><div class="detail-top">${special(p) ? `<span class="rarity-tag">${icon('sparkles')}${p.mythical ? 'Mythical' : 'Legendary'} Pokémon</span>` : ''}<h2 id="modal-title">${esc(p.name)}</h2><div class="types">${types(p)}</div></div><div class="detail-stats"><div class="detail-stat"><strong>${p.stats[0]}</strong><span>Base HP</span></div><div class="detail-stat"><strong>${p.stats[1]}</strong><span>Attack</span></div><div class="detail-stat"><strong>${p.stats[2]}</strong><span>Defense</span></div></div>${evolutionPreview(id)}<p class="modal-description">${friend ? `${esc(p.name)} is already your friend, at level ${friend.level}. ${state.team.includes(id) ? 'They’re on your travel team.' : 'They’re resting at camp, ready for the next adventure.'} You can still meet another in the wild for experience.` : special(p) ? `A rare meeting with an extraordinary Pokémon. ${esc(p.name)} will be at least level 12. Bring a healthy team, weaken them gently, and try a Great Ball.` : `Ready to meet ${esc(p.name)}? Their level will be close to your partner’s. Battle to lower their HP, then throw a Poké Ball to make a new friend.`}</p><div class="modal-actions">${friend && !state.team.includes(id) ? `<button class="btn secondary" data-action="add-team" data-id="${id}">${icon('plus')}Add to team</button>` : ''}<button class="btn ${special(p) ? 'gold' : ''}" data-action="encounter" data-id="${id}">${icon(special(p) ? 'sparkles' : 'compass')}${special(p) ? 'Meet in the wild' : 'Find in the wild'}</button></div></div>`);
+  openModal(`<div class="modal-body"><div class="modal-header"><span class="detail-number">${esc(REGIONS[p.gen])} · #${number(id)}</span><button class="icon-button" data-action="close-modal" aria-label="Close Pokémon details">${icon('close')}</button></div><div class="detail-art">${art(p)}</div><div class="detail-top">${special(p) ? `<span class="rarity-tag">${icon('sparkles')}${p.mythical ? 'Mythical' : 'Legendary'} Pokémon</span>` : ''}<h2 id="modal-title">${esc(p.name)}</h2><div class="types">${types(p)}</div></div><div class="detail-stats"><div class="detail-stat"><strong>${p.stats[0]}</strong><span>Base HP</span></div><div class="detail-stat"><strong>${p.stats[1]}</strong><span>Attack</span></div><div class="detail-stat"><strong>${p.stats[2]}</strong><span>Defense</span></div></div>${evolutionPreview(id)}${formLink(id)}<p class="modal-description">${friend ? `${esc(p.name)} is already your friend, at level ${friend.level}. ${state.team.includes(id) ? 'They’re on your travel team.' : 'They’re resting at camp, ready for the next adventure.'} You can still meet another in the wild for experience.` : special(p) ? `A rare meeting with an extraordinary Pokémon. ${esc(p.name)} will be at least level 12. Bring a healthy team, weaken them gently, and try a Great Ball.` : `Ready to meet ${esc(p.name)}? Their level will be close to your partner’s. Battle to lower their HP, then throw a Poké Ball to make a new friend.`}</p><div class="modal-actions">${friend && !state.team.includes(id) ? `<button class="btn secondary" data-action="add-team" data-id="${id}">${icon('plus')}Add to team</button>` : ''}<button class="btn ${special(p) ? 'gold' : ''}" data-action="encounter" data-id="${id}">${icon(special(p) ? 'sparkles' : 'compass')}${special(p) ? 'Meet in the wild' : 'Find in the wild'}</button></div></div>`);
 }
 function healAll(silent = false) {
   if (battle && !battle.done) return;
@@ -330,6 +332,7 @@ function showHelp() {
     ['Travel with your favorites.', 'You begin with Bulbasaur, Charmander, and Squirtle. Choose your partner in My team. Bring six Pokémon, and change your lineup from your collection. Switching during battle uses a turn, unless your Pokémon just fainted.'],
     ['Take time to rest.', 'Potions heal during battle and use a turn. Camp heals everyone and refills supplies for free. Basic Poké Balls never run out, and a lost battle sends you safely home.'],
     ['Grow together.', 'Evolution unlocks as your Pokémon levels up. Use the evolution button in My team or after a battle. Choose among branching forms, or wait if you love the current one. Special evolutions use simple level goals; no items or trading needed.'],
+    ['Transform for a big moment.', 'Eligible Pokémon can Mega Evolve or Gigantamax once per battle. Mega Evolution changes stats and types until battle ends or fainting. Gigantamax doubles HP and boosts Max attacks for 3 turns; switching ends it. Transforming is free, then choose a move. Find eligible Pokémon and alternate forms in My team → Explore battle forms. No special items are needed.'],
     ['Wander through your world.', 'Visit World map to walk through Clover Town and three routes. Use arrow keys, WASD, direction buttons, or click a place. The quest book has five adventures and a guaranteed shiny Ponyta reward.'],
     ['Grow together.', 'Visit Buddy camp to feed, pet, and play with any Pokémon. Choose four battle moves from their move notebook. New moves unlock as they level up. Friendship stays through evolution.'],
     ['Make the adventure yours.', 'Enter three-round tournaments for trophies and loot. The Outfit studio has clothes, backpacks, and titles to unlock through quests and cups.'],
@@ -374,6 +377,7 @@ function chooseWild(habitat) {
 function startEncounter(id = null, habitat = state.location) {
   const returnTo = page === 'world' ? 'world' : 'explore';
   if (battle && !battle.done && battle.locked) return;
+  clearTransformation();
   battle = null;
   if (!HABITATS[habitat]) habitat = 'meadow';
   if (!state.team.some(member => owned(member).hp > 0)) healAll(true);
@@ -412,24 +416,26 @@ function battleHint(move) {
   return '';
 }
 function battleMoves(species) {
-  return A.equippedMoves(owned(battle.active), species, isTrainerBattle());
+  const p = owned(battle.active);
+  return T.moves(battle,p,A.equippedMoves(p,BY_ID[p.id],isTrainerBattle()));
 }
 function battleHUD(p, enemy = false) {
-  const species = BY_ID[p.id], trainer = isTrainerBattle();
-  return `<div class="battle-hud ${enemy ? 'enemy-hud' : 'player-hud'}">${enemy ? `<span class="wild-badge ${special(species) ? 'legend' : ''}">${trainer ? 'TRAINER POKÉMON' : species.mythical ? 'MYTHICAL' : species.legendary ? 'LEGENDARY' : p.shiny ? 'SHINY POKÉMON' : 'WILD POKÉMON'}</span>` : ''}<div class="hud-title"><h3>${esc(species.name)}${p.shiny?' ✧':''}</h3><span>Lv. ${p.level}</span></div><div class="types">${types(species)}</div>${hpBar(p)}<div class="hud-health"><span>${enemy ? trainer ? 'A worthy opponent' : 'Wild spirit' : 'Your travel buddy'}</span><span>${p.hp} / ${E.maxHP(species, p.level)} HP</span></div></div>`;
+  const species = enemy ? BY_ID[p.id] : battleSpecies(p), trainer = isTrainerBattle();
+  const health = enemy ? {hp:p.hp,max:E.maxHP(species,p.level)} : battleHealth(p), form = enemy ? null : T.active(battle,p.id);
+  return `<div class="battle-hud ${enemy ? 'enemy-hud' : 'player-hud'}">${enemy ? `<span class="wild-badge ${special(species) ? 'legend' : ''}">${trainer ? 'TRAINER POKÉMON' : species.mythical ? 'MYTHICAL' : species.legendary ? 'LEGENDARY' : p.shiny ? 'SHINY POKÉMON' : 'WILD POKÉMON'}</span>` : ''}${form ? `<span class="battle-form-label ${form.kind}">${form.kind === 'mega' ? 'MEGA EVOLUTION' : 'GIGANTAMAX · ' + battle.transformation.turns + ' TURNS'}</span>` : ''}<div class="hud-title"><h3>${esc(species.name)}${p.shiny?' ✧':''}</h3><span>Lv. ${p.level}</span></div><div class="types">${types(species)}</div>${hpBar(p,'',!enemy)}<div class="hud-health"><span>${enemy ? trainer ? 'A worthy opponent' : 'Wild spirit' : 'Your travel buddy'}</span><span>${health.hp} / ${health.max} HP</span></div></div>`;
 }
 function battleTools(b, active, disabled) {
   const trainer = isTrainerBattle(b), ball = BALLS[b.ball] || BALLS.poke;
   const superPotion = b.healing === 'super', potionStock = superPotion ? state.superPotions : state.potions;
   const fainted = state.team.some(id => owned(id).hp <= 0);
-  return `<div class="battle-tools"><div class="moves-label"><span>${trainer ? 'A LITTLE TEAMWORK GOES A LONG WAY' : 'MAKE YOUR NEXT MOVE'}</span></div>${trainer ? `<div class="trainer-battle-note">${icon('shield')}<div><strong>${b.enemyTeam.filter(p=>p.hp > 0).length} Pokémon left to defeat</strong><small>Trainer Pokémon can’t be caught.</small></div></div>` : `<button class="catch-button" data-action="catch" ${disabled ? 'disabled' : ''}><span class="pokeball ${ball.className}"></span><span><strong>Throw a ${ball.name}</strong><small>${ball.inventory ? `${state[ball.inventory]} in your backpack` : 'A new friend? Give it a try.'}</small></span><span class="catch-chance">${Math.round(battleChance() * 100)}%<span>catch chance</span></span></button>`}<div class="battle-tool-row"><button class="btn secondary small" data-action="potion" ${disabled || !potionStock || active.hp >= E.maxHP(BY_ID[active.id], active.level) ? 'disabled' : ''}>${icon('heart')}${superPotion ? 'Super Potion' : 'Potion'} · ${potionStock}</button><button class="btn secondary small" data-action="switch-modal" ${disabled || !state.team.some(id => id !== b.active && owned(id).hp > 0) ? 'disabled' : ''}>${icon('team')}Switch Pokémon</button></div>${trainer || state.revives ? `<button class="btn secondary small revive-control" data-action="revive-picker" ${disabled || !state.revives || !fainted ? 'disabled' : ''}>${icon('plus')}Revive a teammate · ${state.revives}</button>` : ''}${!trainer ? `<label class="ball-selector">Your Poké Balls<select id="battle-ball" aria-label="Choose a Poké Ball" ${disabled ? 'disabled' : ''}>${Object.entries(BALLS).map(([id, item]) => `<option value="${id}" ${b.ball === id ? 'selected' : ''} ${item.inventory && !state[item.inventory] ? 'disabled' : ''}>${item.name} · ${item.inventory ? state[item.inventory]+' left' : 'unlimited'}</option>`).join('')}</select></label>` : ''}${state.superPotions || superPotion ? `<label class="ball-selector">Healing item<select id="battle-healing" aria-label="Choose a healing item" ${disabled ? 'disabled' : ''}><option value="potion" ${!superPotion ? 'selected' : ''} ${!state.potions ? 'disabled' : ''}>Potion · ${state.potions}</option><option value="super" ${superPotion ? 'selected' : ''} ${!state.superPotions ? 'disabled' : ''}>Super Potion · ${state.superPotions}</option></select></label>` : ''}</div>`;
+  return `<div class="battle-tools"><div class="moves-label"><span>${trainer ? 'A LITTLE TEAMWORK GOES A LONG WAY' : 'MAKE YOUR NEXT MOVE'}</span></div>${trainer ? `<div class="trainer-battle-note">${icon('shield')}<div><strong>${b.enemyTeam.filter(p=>p.hp > 0).length} Pokémon left to defeat</strong><small>Trainer Pokémon can’t be caught.</small></div></div>` : `<button class="catch-button" data-action="catch" ${disabled ? 'disabled' : ''}><span class="pokeball ${ball.className}"></span><span><strong>Throw a ${ball.name}</strong><small>${ball.inventory ? `${state[ball.inventory]} in your backpack` : 'A new friend? Give it a try.'}</small></span><span class="catch-chance">${Math.round(battleChance() * 100)}%<span>catch chance</span></span></button>`}<div class="battle-tool-row"><button class="btn secondary small" data-action="potion" ${disabled || !potionStock || battleHealth(active).hp >= battleHealth(active).max ? 'disabled' : ''}>${icon('heart')}${superPotion ? 'Super Potion' : 'Potion'} · ${potionStock}</button><button class="btn secondary small" data-action="switch-modal" ${disabled || !state.team.some(id => id !== b.active && owned(id).hp > 0) ? 'disabled' : ''}>${icon('team')}Switch Pokémon</button></div>${trainer || state.revives ? `<button class="btn secondary small revive-control" data-action="revive-picker" ${disabled || !state.revives || !fainted ? 'disabled' : ''}>${icon('plus')}Revive a teammate · ${state.revives}</button>` : ''}${!trainer ? `<label class="ball-selector">Your Poké Balls<select id="battle-ball" aria-label="Choose a Poké Ball" ${disabled ? 'disabled' : ''}>${Object.entries(BALLS).map(([id, item]) => `<option value="${id}" ${b.ball === id ? 'selected' : ''} ${item.inventory && !state[item.inventory] ? 'disabled' : ''}>${item.name} · ${item.inventory ? state[item.inventory]+' left' : 'unlimited'}</option>`).join('')}</select></label>` : ''}${state.superPotions || superPotion ? `<label class="ball-selector">Healing item<select id="battle-healing" aria-label="Choose a healing item" ${disabled ? 'disabled' : ''}><option value="potion" ${!superPotion ? 'selected' : ''} ${!state.potions ? 'disabled' : ''}>Potion · ${state.potions}</option><option value="super" ${superPotion ? 'selected' : ''} ${!state.superPotions ? 'disabled' : ''}>Super Potion · ${state.superPotions}</option></select></label>` : ''}</div>`;
 }
 function renderBattle() {
-  const b = battle, active = owned(b.active), species = BY_ID[active.id], enemy = BY_ID[b.enemy.id], habitat = HABITATS[b.habitat];
+  const b = battle, active = owned(b.active), species = battleSpecies(active), enemy = BY_ID[b.enemy.id], habitat = HABITATS[b.habitat];
   const trainer = isTrainerBattle(b), challenger = trainer ? CHALLENGE_BY_ID[b.opponentId] : null;
   const disabled = b.locked || b.done || active.hp <= 0, moves = battleMoves(species), cooldown = b.cooldowns[b.active] || 0;
   const subtitle = trainer ? `${challenger.title} · ${challenger.name}` : habitat.name;
-  main.innerHTML = `<div class="battle-page ${trainer ? 'trainer-match' : ''}"><div class="page-heading battle-heading"><div><div class="eyebrow">${icon(trainer ? 'trophy' : 'pin')}${esc(subtitle)} · TURN ${b.turn}</div><h1>${b.done ? 'Another little story to tell.' : trainer ? 'Your team. Your moment.' : 'A new friendship, perhaps?'}</h1></div><button class="btn secondary small" data-action="leave-battle">${icon('arrow')}${trainer ? 'Leave battle safely' : 'Head back safely'}</button></div>${opponentLineup(b)}<div class="battle-arena">${landscape(b.habitat)}<span class="battle-sky-label">${icon(habitat.icon)}${trainer ? `Pokémon ${b.enemyIndex + 1} of ${b.enemyTeam.length}` : esc(habitat.sky)}</span>${battleHUD(b.enemy, true)}${battleHUD(active)}<div class="battle-creature player-creature" id="player-creature">${art(species, '', '', Boolean(active.shiny))}</div><div class="battle-creature enemy-creature" id="enemy-creature">${art(enemy, '', '', Boolean(b.enemy.shiny))}${special(enemy) ? '<span class="legend-star">✧</span>' : ''}</div></div><section class="battle-controls" aria-label="Battle controls"><div class="battle-message" role="status" aria-live="polite">${icon(b.done ? 'sparkles' : 'compass')}<div><strong>${esc(b.message)}</strong><p>${esc(b.hint)}</p></div></div>${b.done ? `<div class="modal-actions" style="padding:0 25px 25px"><button class="btn secondary" data-action="battle-summary">See your field notes</button><button class="btn" data-action="leave-battle">${trainer ? 'Back to the league' : 'Back to exploring'} ${icon('arrow')}</button></div>` : active.hp <= 0 ? `<div class="modal-actions" style="padding:0 25px 25px"><button class="btn" data-action="switch-modal">${icon('team')}Choose your next Pokémon</button></div>` : `<div class="battle-buttons"><div><div class="moves-label"><span>WHAT WILL ${esc(species.name.toUpperCase())} DO?</span><span>CHOOSE A MOVE</span></div><div class="moves-grid">${moves.map((move, i) => `<button class="move-button" data-action="move" data-index="${i}" ${disabled || move.cooldown && cooldown > 0 ? 'disabled' : ''} title="${esc(move.description)}"><strong>${esc(move.name)}${icon(move.gentle ? 'heart' : 'swords')}</strong><small><span class="type type-${move.type}">${move.type}</span>${move.cooldown && cooldown > 0 ? `${cooldown} turn${cooldown > 1 ? 's' : ''} to recharge` : battleHint(move) || (move.cooldown ? 'Power move' : 'Steady move')}</small></button>`).join('')}</div></div>${battleTools(b, active, disabled)}</div>`}</section><div class="battle-party"><span>YOUR TRAVEL TEAM</span>${state.team.map(id => { const p = owned(id); return `<button class="party-token ${id === b.active ? 'active' : ''} ${p.hp <= 0 ? 'fainted' : ''}" data-action="battle-switch" data-id="${id}" ${b.locked || b.done || id === b.active || p.hp <= 0 ? 'disabled' : ''} aria-label="Switch to ${esc(BY_ID[id].name)}, ${p.hp} HP">${art(BY_ID[id])}<span>${esc(BY_ID[id].name)}<small>${p.hp === 0 ? 'Needs a rest' : `Lv. ${p.level} · ${p.hp} HP`}</small></span></button>`; }).join('')}</div><details class="battle-log"><summary>Field notes · ${b.log.length} ${b.log.length === 1 ? 'moment' : 'moments'}</summary><ol>${b.log.map(line => `<li>${esc(line)}</li>`).join('')}</ol></details></div>`;
+  main.innerHTML = `<div class="battle-page ${trainer ? 'trainer-match' : ''}"><div class="page-heading battle-heading"><div><div class="eyebrow">${icon(trainer ? 'trophy' : 'pin')}${esc(subtitle)} · TURN ${b.turn}</div><h1>${b.done ? 'Another little story to tell.' : trainer ? 'Your team. Your moment.' : 'A new friendship, perhaps?'}</h1></div><button class="btn secondary small" data-action="leave-battle">${icon('arrow')}${trainer ? 'Leave battle safely' : 'Head back safely'}</button></div>${opponentLineup(b)}<div class="battle-arena">${landscape(b.habitat)}<span class="battle-sky-label">${icon(habitat.icon)}${trainer ? `Pokémon ${b.enemyIndex + 1} of ${b.enemyTeam.length}` : esc(habitat.sky)}</span>${battleHUD(b.enemy, true)}${battleHUD(active)}<div class="battle-creature player-creature ${T.active(b,active.id) ? 'form-'+T.active(b,active.id).kind : ''}" id="player-creature">${battleFormArt(active)}</div><div class="battle-creature enemy-creature" id="enemy-creature">${art(enemy, '', '', Boolean(b.enemy.shiny))}${special(enemy) ? '<span class="legend-star">✧</span>' : ''}</div></div><section class="battle-controls" aria-label="Battle controls"><div class="battle-message" role="status" aria-live="polite">${icon(b.done ? 'sparkles' : 'compass')}<div><strong>${esc(b.message)}</strong><p>${esc(b.hint)}</p></div></div>${b.done ? `<div class="modal-actions" style="padding:0 25px 25px"><button class="btn secondary" data-action="battle-summary">See your field notes</button><button class="btn" data-action="leave-battle">${trainer ? 'Back to the league' : 'Back to exploring'} ${icon('arrow')}</button></div>` : active.hp <= 0 ? `<div class="modal-actions" style="padding:0 25px 25px"><button class="btn" data-action="switch-modal">${icon('team')}Choose your next Pokémon</button></div>` : `${transformationControls(b,active,disabled)}<div class="battle-buttons"><div><div class="moves-label"><span>WHAT WILL ${esc(species.name.toUpperCase())} DO?</span><span>CHOOSE A MOVE</span></div><div class="moves-grid">${moves.map((move, i) => `<button class="move-button" data-action="move" data-index="${i}" ${disabled || move.cooldown && cooldown > 0 ? 'disabled' : ''} title="${esc(move.description)}"><strong>${esc(move.name)}${icon(move.gentle ? 'heart' : 'swords')}</strong><small><span class="type type-${move.type}">${move.type}</span>${move.cooldown && cooldown > 0 ? `${cooldown} turn${cooldown > 1 ? 's' : ''} to recharge` : move.maxMove ? `<span>${move.power} power</span>${battleHint(move)}` : battleHint(move) || (move.cooldown ? 'Power move' : 'Steady move')}</small></button>`).join('')}</div></div>${battleTools(b, active, disabled)}</div>`}</section><div class="battle-party"><span>YOUR TRAVEL TEAM</span>${state.team.map(id => { const p = owned(id); return `<button class="party-token ${id === b.active ? 'active' : ''} ${p.hp <= 0 ? 'fainted' : ''}" data-action="battle-switch" data-id="${id}" ${b.locked || b.done || id === b.active || p.hp <= 0 ? 'disabled' : ''} aria-label="Switch to ${esc(BY_ID[id].name)}, ${p.hp} HP">${art(BY_ID[id])}<span>${esc(BY_ID[id].name)}<small>${p.hp === 0 ? 'Needs a rest' : `Lv. ${p.level} · ${p.hp} HP`}</small></span></button>`; }).join('')}</div><details class="battle-log"><summary>Field notes · ${b.log.length} ${b.log.length === 1 ? 'moment' : 'moments'}</summary><ol>${b.log.map(line => `<li>${esc(line)}</li>`).join('')}</ol></details></div>`;
 }
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, matchMedia('(prefers-reduced-motion: reduce)').matches ? Math.min(ms, 80) : ms));
@@ -441,7 +447,7 @@ function describeDamage(name, move, result) {
 }
 async function useMove(index) {
   if (!canAct()) return;
-  const b = battle, player = owned(b.active), p = BY_ID[player.id], foe = BY_ID[b.enemy.id], move = battleMoves(p)[index];
+  const b = battle, player = owned(b.active), p = battleSpecies(player), foe = BY_ID[b.enemy.id], move = battleMoves(p)[index];
   if (!move || move.cooldown && (b.cooldowns[b.active] || 0) > 0) return;
   b.locked = true;
   announce(b, `${p.name} used ${move.name}!`, move.gentle ? 'A careful move. Gentle tap will never knock out a wild Pokémon.' : 'Your buddy is giving it their best.');
@@ -467,30 +473,32 @@ async function enemyDefeated(b) {
   b.enemyCooldown = 0;
   Object.keys(b.cooldowns).forEach(id => b.cooldowns[id] = Math.max(0, b.cooldowns[id] - 1));
   b.turn++;
+  const ended = tickTransformation(b);
   if (!state.seen.includes(b.enemy.id)) state.seen.push(b.enemy.id);
   const message = `${c.name} sent out ${BY_ID[b.enemy.id].name}!`;
   b.log.push(message);
-  announce(b, message, `${b.enemyIndex} down, ${b.enemyTeam.length - b.enemyIndex} to go. You have the next move.`);
+  announce(b, message, `${ended ? 'Gigantamax ended. ' : ''}${b.enemyIndex} down, ${b.enemyTeam.length - b.enemyIndex} to go. You have the next move.`);
   save();
   await delay(350); if (!current(b)) return;
   b.locked = false; renderBattle();
 }
 async function enemyTurn(b) {
   if (!current(b)) return;
-  const player = owned(b.active), p = BY_ID[player.id], foe = BY_ID[b.enemy.id];
+  const player = owned(b.active), p = battleSpecies(player), foe = BY_ID[b.enemy.id];
   let options = E.moves(foe).slice(0, special(foe) ? 3 : 2).filter(move => E.typeEffect(move.type, p.types, CHART) > 0);
   if (!options.length) options = [{ name: 'Wild strike', type: 'typeless', power: 30 }];
   const trainer = isTrainerBattle(b);
-  const move = trainer ? E.trainerMove(b.enemy, player, foe, p, CHART, b.enemyCooldown) : options[Math.floor(Math.random() * options.length)];
+  const move = trainer ? E.trainerMove(b.enemy, T.combatant(b,player,BY_ID[player.id]), foe, p, CHART, b.enemyCooldown) : options[Math.floor(Math.random() * options.length)];
   if (trainer) b.enemyCooldown = move.cooldown ? move.cooldown : Math.max(0, b.enemyCooldown - 1);
   const scale = (trainer ? { gentle: .52, balanced: .78, brave: .95 } : { gentle: .46, balanced: .68, brave: .88 })[state.settings.difficulty];
-  const result = E.damage(b.enemy, player, move, foe, p, CHART, { scale });
-  player.hp -= result.amount;
+  const result = E.damage(b.enemy, T.combatant(b,player,BY_ID[player.id]), move, foe, p, CHART, { scale });
+  T.hurt(b,player,result.amount);
   const description = describeDamage(foe.name, move, result);
   b.log.push(description);
   Object.keys(b.cooldowns).forEach(id => b.cooldowns[id] = Math.max(0, b.cooldowns[id] - 1));
   b.turn++;
-  announce(b, description, player.hp > 0 ? trainer ? 'Your turn. Attack, heal, revive a friend, or switch your teammate.' : 'Your turn. Battle, catch, heal, or let another teammate have a go.' : `${p.name} needs a rest. Another friend can take the lead.`);
+  const ended = tickTransformation(b);
+  announce(b, description, ended ? 'Gigantamax ended after three turns. Your buddy is back to normal. Your turn!' : player.hp > 0 ? trainer ? 'Your turn. Attack, heal, revive a friend, or switch your teammate.' : 'Your turn. Battle, catch, heal, or let another teammate have a go.' : `${p.name} needs a rest. Another friend can take the lead.`);
   $('#player-creature')?.classList.add('hit'); sound('hit'); save();
   await delay(370); if (!current(b)) return;
   b.locked = false;
@@ -524,12 +532,12 @@ async function throwBall() {
 }
 async function usePotion() {
   if (!canAct()) return;
-  const b = battle, p = owned(b.active), max = E.maxHP(BY_ID[p.id], p.level);
+  const b = battle, p = owned(b.active), health = battleHealth(p);
   const superPotion = b.healing === 'super', stock = superPotion ? 'superPotions' : 'potions', name = superPotion ? 'Super Potion' : 'Potion';
-  if (p.hp >= max || !state[stock]) return;
+  if (health.hp >= health.max || !state[stock]) return;
   b.locked = true; state[stock]--;
-  const gain = Math.min(max - p.hp, Math.round(max * (superPotion ? 1 : .6)));
-  p.hp += gain; save(); sound('heal');
+  const gain = T.heal(b,p,BY_ID[p.id],superPotion ? 1 : .6);
+  save(); sound('heal');
   if (superPotion && !state.superPotions) b.healing = 'potion';
   b.log.push(`${BY_ID[p.id].name} recovered ${gain} HP with a ${name}.`);
   announce(b, `Feeling better! ${BY_ID[p.id].name} recovered ${gain} HP.`, 'Healing takes your turn. Your opponent goes next.');
@@ -544,6 +552,8 @@ function showSwitch() {
 async function switchPokemon(id) {
   if (!battle || battle.done || battle.locked || !state.team.includes(id) || id === battle.active || owned(id).hp <= 0) return;
   const b = battle, freeSwitch = owned(b.active).hp <= 0;
+  const ended = T.switchOut(b,owned(b.active));
+  if (ended) b.log.push(`${ended.name} returned to normal when switching out.`);
   b.active = id;
   if (modal.open) modal.close();
   b.log.push(`${BY_ID[id].name} took the lead.`);
@@ -558,6 +568,7 @@ function finishBattle(kind) {
   const b = battle, p = BY_ID[b.enemy.id], already = Boolean(owned(p.id));
   const trainer = isTrainerBattle(b);
   if (trainer && (kind === 'catch' || kind === 'win' && b.enemyTeam.some(member => member.hp > 0))) return;
+  clearTransformation(b);
   b.done = true; b.locked = false;
   A.afterBattle(state);
   const rewards = [], levels = [];
@@ -605,6 +616,7 @@ function showBattleResult() {
 function leaveBattle() {
   const destination = battle?.kind === 'tournament' ? 'tournaments' : battle?.returnTo || (isTrainerBattle() ? 'league' : 'explore');
   if (battle && !battle.done) toast('Back on the trail, safe and sound. You can heal at camp for free.');
+  clearTransformation();
   battle = null; save(); go(destination);
 }
 
@@ -613,6 +625,10 @@ document.addEventListener('click', event => {
   if (!button || button.disabled) return;
   const action = button.dataset.action, id = Number(button.dataset.id);
   switch (action) {
+    case 'form-guide': showFormGuide(id); break;
+    case 'form-tab': formGuideKind = button.dataset.kind; formGuideQuery = ''; renderFormGuide(); break;
+    case 'transform-options': showTransformOptions(button.dataset.kind); break;
+    case 'transform': transformPokemon(button.dataset.form); break;
     case 'explore': startEncounter(); break;
     case 'camp-open': campBuddy = id; campMessage = ''; go('camp'); break;
     case 'league-tab': leagueTab = button.dataset.tab === 'trainers' ? 'trainers' : 'gyms'; renderLeague(); break;
@@ -658,6 +674,7 @@ document.addEventListener('click', event => {
   }
 });
 document.addEventListener('input', event => {
+  if (event.target.id === 'form-search') { formGuideQuery = event.target.value; renderFormResults(); }
   if (event.target.id === 'dex-search') { filter.query = event.target.value; filter.page = 0; renderDexResults(); }
   if (event.target.id === 'storage-search') { storageQuery = event.target.value; renderStorage(); }
 });

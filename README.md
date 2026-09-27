@@ -4,7 +4,7 @@ A little curiosity. A wild adventure.
 
 **[Play Pokéwild in your browser](https://anniehu824.github.io/pokewild/)**
 
-An unofficial Pokémon fan game with all 1,025 species, evolution, gyms, quests, shiny Pokémon, and tournaments.
+An unofficial Pokémon fan game with all 1,025 species, evolution, Mega Evolution, Gigantamax, gyms, quests, shiny Pokémon, and tournaments.
 
 ![Clover Town in Pokéwild](docs/preview.png)
 
@@ -25,6 +25,21 @@ You start with **Bulbasaur, Charmander, and Squirtle**, all at level 8.
 7. Open **Battle league** to challenge gym leaders for badges or other trainers for useful loot.
 8. Visit **World map** to walk through Clover Town and three routes, follow quests, and find treasure.
 9. Spend time at **Buddy camp**, choose new battle moves, enter tournaments, or visit the **Outfit studio**.
+10. Try **Mega Evolve** or **Gigantamax** during battle with an eligible buddy. **My team → Explore battle forms** shows the full roster.
+
+## Mega Evolution and Gigantamax
+
+The battle-form guide contains **97 Mega form choices across 87 species** and **34 Gigantamax choices across 32 species**, including alternate styles and the newer Mega forms in the public Pokémon dataset. Every form includes normal and shiny artwork. Forms are temporary choices for your existing Pokémon; they do not create extra collectible species.
+
+- **Choose one transformation per battle:** either Mega Evolution or Gigantamax, for one teammate. It is free to activate, then you choose your move. The limit covers a trainer’s entire opposing team; each tournament round gets a fresh use.
+- **Mega Evolution** uses the form’s base battle stats and types. It lasts until that Pokémon faints or the battle ends, and stays active when switching out and back. HP and your equipped moves stay the same. Charizard and Mewtwo have separate X and Y choices; other alternate Mega forms appear in the chooser too.
+- **Gigantamax** doubles current and maximum HP and turns attacks into stronger Max moves for **three turns**. Max moves gain 30% power and have no recharge while transformed. An attack matching the form’s signature type becomes its **G-Max move**. If your moves lack that type, the first attack becomes the signature move instead. The controls show attack power so you can distinguish stronger attacks.
+- Attacking, healing, reviving, and failed captures each use a Gigantamax turn. Knocking out one member of a trainer’s team also counts. Switching out, fainting, finishing the battle, leaving, or reloading ends Gigantamax. Remaining HP returns to ordinary units, rounded up; the transformation never provides permanent healing.
+- **Gentle tap stays gentle**, including while Gigantamaxed. It still leaves wild Pokémon with at least 1 HP. Trainer Pokémon still cannot be captured.
+- All eligible Pokémon can use their forms immediately: no Mega Stones, Max Soup, extra levels, or special currency. Bulbasaur, Charmander, and Squirtle first need to evolve into Venusaur, Charizard, and Blastoise; each of those final starter forms can use either feature. Pikachu and Eevee can Gigantamax directly.
+- The guide is available from My team and eligible Pokédex detail screens. Existing saves work automatically, with no reset or permanent changes to species, XP, friendship, shininess, or chosen moves.
+
+These are simplified Pokéwild rules. Mega stats and form types affect the existing damage system; special abilities and weather/status effects are not simulated. Alternate appearance and fighting styles are selectable under the same collected species.
 
 ## Clover Town and three routes
 
@@ -131,7 +146,7 @@ All **484 species-to-species evolution paths** are included. Evolution changes t
 
 ## A friendly challenge
 
-- The Pokédex contains all **1,025 species** from generations 1–9: 931 regular, 71 legendary, and 23 mythical Pokémon. Alternate forms, Mega Evolution, and cosmetic variants are not separate collectible species.
+- The Pokédex contains all **1,025 species** from generations 1–9: 931 regular, 71 legendary, and 23 mythical Pokémon. Mega and Gigantamax forms are temporary battle transformations, not separate collectible species.
 - Every species can be encountered directly from its Pokédex entry. Legendary and mythical Pokémon begin at level 12 or above, have stronger stats, and are harder to catch.
 - Regular wild Pokémon scale to your partner’s level. Pick **Gentle**, **Balanced**, or **Brave** in Trainer settings. Balanced is the default; Gentle is a good option for younger children.
 - Element types affect damage. The game shows which moves are effective. It uses a simplified set of four moves for each Pokémon, rather than the original games’ full move lists and status systems.
@@ -170,6 +185,7 @@ Then visit <http://127.0.0.1:8765>. Keep the terminal open while playing.
 - `adventure-data.js`: the four map areas, quests, cups, and customization choices.
 - `adventure-engine.js`: map navigation, quests, friendship, shiny colors, moves, and compatible saving.
 - `adventure.js` and `adventure.css`: the world map, camp, quest book, tournaments, and outfit studio.
+- `transformations-data.js`, `transformations-engine.js`, `transformations.js`, and `transformations.css`: eligible Mega/Gigantamax forms, temporary battle rules, controls, and the searchable guide.
 - `assets/`: all Pokémon sprites, selected official artwork, fonts, and font licenses.
 - `CREDITS.md`: source and artwork attribution.
 
@@ -180,3 +196,7 @@ Browser checks cover wild battles and captures, all eight gym victories, trainer
 Adventure checks play through the full five-quest story and all three tournament cups, including a loss, pause/reload, and ending a run. They also cover walking, obstacles, treasure, care activities, learned moves in actual battles, shiny capture and evolution, customization unlocks, backup round trips, mobile layouts, and offline play. All 1,025 shiny assets and reachable map landmarks are verified.
 
 Engine checks cover every species and evolution path, type matchups, catch probabilities, XP limits, move cooldowns, loot rules, old-save migration, and invalid saves. Simulated complete matches check that the starter trio can beat the first gym, high-level trainers remain challenging for beginners, and prepared teams can win later challenges.
+
+Transformation checks cover all 131 form choices and their artwork, type/stat changes, signature attacks, exact three-turn expiry, HP conversion, switching, fainting, catches, item use, interrupted actions, gym rewards, tournament resets, old saves, and phone layouts.
+
+Run the portable transformation rule checks from the game folder with `node tests/transformations.cjs` (Node.js 18 or newer). Playing the game itself does not require Node.js.

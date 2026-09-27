@@ -172,6 +172,7 @@ function startCupRound(){
 function finishCupRound(kind){
   const b=battle,run=state.tournamentRun;if(!b||b.done||!run||b.opponentId!==cupRoundId(cupById(run.id),run.round))return;
   if(kind==='catch'||kind==='win'&&b.enemyTeam.some(p=>p.hp>0))return;
+  clearTransformation(b);
   const cup=cupById(run.id),round=run.round;b.done=true;b.locked=false;A.afterBattle(state);
   let prize=null;const rewards=[];
   if(kind==='loss'){state.tournamentRun=null;healAll(true);b.message='A fresh start is waiting.';b.hint='Your team is healed. Your Pokémon, items, and earlier trophies are safe. Try the cup again whenever you like.';}
