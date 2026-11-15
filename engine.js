@@ -36,12 +36,16 @@
     if (move.gentle) amount = Math.min(amount, Math.max(0, defender.hp - 1));
     return { amount: Math.min(amount, defender.hp), effectiveness: effect };
   }
-  function catchChance(species, enemy, ball = 'poke', failedAttempts = 0, difficulty = 'balanced') {
+  function catchChance(species, enemy, ball = 'poke', failedAttempts = 0, difficulty = 'balanced', context = {}) {
     const health = enemy.hp / maxHP(species, enemy.level);
     const special = species.legendary || species.mythical;
     let chance = special ? .065 + (1 - health) * .48 + species.capture / 255 * .045 : .28 + (1 - health) * .53 + species.capture / 255 * .13;
     if (ball === 'great') chance *= 1.35;
     if (ball === 'ultra') chance *= 1.75;
+    if (ball === 'quick' && context.turn === 1) chance *= 2;
+    if (ball === 'net' && species.types.some(type => type === 'water' || type === 'bug')) chance *= 2;
+    if (ball === 'dusk' && context.habitat === 'dusk') chance *= 2;
+    if (ball === 'repeat' && context.caught) chance *= 2;
     if (difficulty === 'gentle') chance += .1;
     if (difficulty === 'brave') chance -= .045;
     // Repeated attempts at low health guarantee eventual success.
@@ -116,7 +120,8 @@
   function freshState(byId) {
     const state = { version: 1, owned: [1, 4, 7].map(id => makeOwned(byId[id])), team: [1, 4, 7], lead: 1,
       seen: [1, 4, 7], caught: [1, 4, 7], evolutions: 0, wins: 0, captures: 0, encounters: 0, trainerXP: 0, potions: 8, greatBalls: 5,
-      ultraBalls: 0, superPotions: 0, revives: 0, rareCandies: 0, badges: [], trainerWins: 0, gymWins: 0, challengeWins: {},
+      ultraBalls: 0, quickBalls: 2, netBalls: 2, duskBalls: 2, repeatBalls: 2,
+      superPotions: 0, revives: 0, rareCandies: 0, badges: [], trainerWins: 0, gymWins: 0, challengeWins: {},
       region: 1, location: 'meadow', settings: { name: 'Rookie Trainer', difficulty: 'balanced', sound: false } };
     return root.AdventureEngine ? root.AdventureEngine.extendState(state) : state;
   }
@@ -134,7 +139,7 @@
     clean.lead = clean.team.includes(raw.lead) ? raw.lead : clean.team[0];
     clean.caught = [...new Set([...(Array.isArray(raw.caught) ? raw.caught.filter(id => Number.isInteger(id) && byId[id]) : []), ...seenOwned])];
     clean.seen = [...new Set([...(Array.isArray(raw.seen) ? raw.seen.filter(id => Number.isInteger(id) && byId[id]) : []), ...clean.caught])];
-    for (const key of ['wins', 'captures', 'encounters', 'trainerXP', 'potions', 'greatBalls', 'evolutions', 'ultraBalls', 'superPotions', 'revives', 'rareCandies', 'trainerWins', 'gymWins']) {
+    for (const key of ['wins', 'captures', 'encounters', 'trainerXP', 'potions', 'greatBalls', 'evolutions', 'ultraBalls', 'quickBalls', 'netBalls', 'duskBalls', 'repeatBalls', 'superPotions', 'revives', 'rareCandies', 'trainerWins', 'gymWins']) {
       if (integer(raw[key], 0, 10000000)) clean[key] = raw[key];
     }
     const badgeIds = ['boulder', 'cascade', 'thunder', 'rainbow', 'soul', 'marsh', 'volcano', 'earth'];

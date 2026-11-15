@@ -1,6 +1,6 @@
 /* Pokéwild · a local-first, zero-build Pokémon fan game. */
 'use strict';
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 const E = window.PokeEngine;
 const A = window.AdventureEngine;
 const T = window.TransformationEngine;
@@ -23,10 +23,26 @@ const icon = (name, cls = '') => `<svg class="icon ${cls}" aria-hidden="true"><u
 const number = id => String(id).padStart(4, '0');
 const types = p => p.types.map(t => `<span class="type type-${t}">${t}</span>`).join('');
 const special = p => p.legendary || p.mythical;
+function pokemonImageFallback(image) {
+  const fallback = image.dataset.fallback;
+  if (fallback) {
+    image.dataset.fallback = '';
+    image.src = fallback;
+    image.classList.add('pixel');
+    return;
+  }
+  image.onerror = null;
+  image.src = 'assets/favicon.svg';
+  image.classList.add('pokemon-image-placeholder');
+}
 const art = (p, className = '', attrs = '', shiny = null) => {
   const sparkle = shiny ?? Boolean(state.owned.find(friend => friend.id === p.id)?.shiny);
   const painted = !sparkle && LOCAL_ART.has(p.art);
-  return `<img class="pokemon-img ${painted ? '' : 'pixel'} ${sparkle ? 'shiny-sprite' : ''} ${className}" src="assets/${sparkle ? 'shiny' : painted ? 'art' : 'sprites'}/${p.art}.png" alt="${sparkle ? 'Shiny ' : ''}${esc(p.name)}" ${attrs} draggable="false">`;
+  const primary = `assets/${sparkle ? 'shiny' : painted ? 'art' : 'sprites'}/${p.art}.png`;
+  const fallback = sparkle
+    ? `assets/${LOCAL_ART.has(p.art) ? 'art' : 'sprites'}/${p.art}.png`
+    : `assets/${painted ? 'sprites' : 'shiny'}/${p.art}.png`;
+  return `<img class="pokemon-img ${painted ? '' : 'pixel'} ${sparkle ? 'shiny-sprite' : ''} ${className}" src="${primary}" data-fallback="${fallback}" onerror="pokemonImageFallback(this)" alt="${sparkle ? 'Shiny ' : ''}${esc(p.name)}" ${attrs} draggable="false">`;
 };
 const main = $('#main');
 const modal = $('#modal');
@@ -201,6 +217,10 @@ function renderStorage() {
 }
 function renderBag() {
   const loot = [
+    { key:'quickBalls', name:'Quick Balls', art:'<span class="pokeball quick-ball"></span>', description:'Best at the very start of an encounter. Doubles the catch chance on turn one.', note:'Start with 2 · Earn more in meadows' },
+    { key:'netBalls', name:'Net Balls', art:'<span class="pokeball net-ball"></span>', description:'Made for Water- and Bug-type Pokémon. Doubles the catch chance against either type.', note:'Start with 2 · Earn more by rivers' },
+    { key:'duskBalls', name:'Dusk Balls', art:'<span class="pokeball dusk-ball"></span>', description:'At their best beneath the stars. Doubles the catch chance in Moonlit Grove.', note:'Start with 2 · Earn more in dusk habitats' },
+    { key:'repeatBalls', name:'Repeat Balls', art:'<span class="pokeball repeat-ball"></span>', description:'A familiar face is easier to welcome back. Doubles the chance for a species already befriended.', note:'Start with 2 · Earn more in Ember Peaks' },
     { key:'ultraBalls', name:'Ultra Balls', art:'<span class="pokeball ultra-ball"></span>', description:'Your best ball for a rare friend. Raises the base catch chance by 75%, up to the game’s catch limit.', note:'Choose during a wild encounter' },
     { key:'superPotions', name:'Super Potions', art:'<span class="potion-art super-potion-art"></span>', description:'A big boost during a long match. Restores a Pokémon to full HP and uses one turn.', note:'Choose with the healing-item selector in battle' },
     { key:'revives', name:'Revives', art:'<span class="revive-art"></span>', description:'Bring a fainted teammate back with half their HP. Uses one turn while another teammate is fighting.', note:'Choose Revive in battle' },
@@ -405,7 +425,11 @@ function startEncounter(id = null, habitat = state.location) {
 }
 function battleChance() {
   if (isTrainerBattle()) return 0;
-  return E.catchChance(BY_ID[battle.enemy.id], battle.enemy, battle.ball, battle.failedAttempts, state.settings.difficulty);
+  return E.catchChance(BY_ID[battle.enemy.id], battle.enemy, battle.ball, battle.failedAttempts, state.settings.difficulty, {
+    turn: battle.turn,
+    habitat: battle.habitat,
+    caught: state.caught.includes(battle.enemy.id)
+  });
 }
 function battleHint(move) {
   if (move.gentle) return '<span class="effectiveness">Leaves 1 HP</span>';
@@ -600,7 +624,12 @@ function finishBattle(kind) {
     state.team.forEach(id => { const gain = E.grantXP(owned(id), BY_ID[id], experience); if (gain) levels.push(`${BY_ID[id].name} → Lv. ${owned(id).level}`); });
     state.trainerXP += (kind === 'catch' ? 35 : 25) + (special(p) ? 20 : 0);
     state.greatBalls++;
-    rewards.push(`+${experience} XP to your team`, '+1 Great Ball', ...levels);
+    const trailBall = {
+      meadow: ['quickBalls', 'Quick Ball'], river: ['netBalls', 'Net Ball'],
+      dusk: ['duskBalls', 'Dusk Ball'], volcano: ['repeatBalls', 'Repeat Ball']
+    }[b.habitat] || ['quickBalls', 'Quick Ball'];
+    state[trailBall[0]]++;
+    rewards.push(`+${experience} XP to your team`, '+1 Great Ball', `+1 ${trailBall[1]}`, ...levels);
     b.message = kind === 'catch' ? `You caught ${p.name}!` : `A lovely effort. You won the battle!`;
     b.hint = kind === 'catch' ? already ? 'A familiar friend! Your team earned experience for the encounter.' : state.team.includes(p.id) ? `${p.name} joined your travel team, ready for the next adventure.` : `${p.name} is resting at camp. Add them to your team whenever you like.` : `${p.name} is taking a rest. Your whole team gained experience.`;
   }
@@ -687,7 +716,7 @@ document.addEventListener('change', event => {
     if (id === 'dex-rarity') filter.rarity = value;
     filter.page = 0; renderDexResults();
   }
-  if (id === 'battle-ball' && battle && !battle.locked && ['poke', 'great', 'ultra'].includes(value)) { battle.ball = value; renderBattle(); }
+  if (id === 'battle-ball' && battle && !battle.locked && BALLS[value]) { battle.ball = value; renderBattle(); }
   if (id === 'battle-healing' && battle && !battle.locked && ['potion', 'super'].includes(value)) { battle.healing = value; renderBattle(); }
   if (id === 'import-file') importSave(event.target.files[0]);
 });

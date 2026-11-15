@@ -4,7 +4,11 @@ const CHALLENGE_BY_ID = Object.fromEntries(CHALLENGES.map(c => [c.id, c]));
 const BALLS = {
   poke: { name: 'Poké Ball', inventory: null, className: '' },
   great: { name: 'Great Ball', inventory: 'greatBalls', className: 'great-ball' },
-  ultra: { name: 'Ultra Ball', inventory: 'ultraBalls', className: 'ultra-ball' }
+  ultra: { name: 'Ultra Ball', inventory: 'ultraBalls', className: 'ultra-ball' },
+  quick: { name: 'Quick Ball', inventory: 'quickBalls', className: 'quick-ball' },
+  net: { name: 'Net Ball', inventory: 'netBalls', className: 'net-ball' },
+  dusk: { name: 'Dusk Ball', inventory: 'duskBalls', className: 'dusk-ball' },
+  repeat: { name: 'Repeat Ball', inventory: 'repeatBalls', className: 'repeat-ball' }
 };
 const LOOT_NAMES = { ultraBalls:'Ultra Balls', superPotions:'Super Potions', revives:'Revives', rareCandies:'Rare Candies' };
 const LOOT_SINGULAR = { ultraBalls:'Ultra Ball', superPotions:'Super Potion', revives:'Revive', rareCandies:'Rare Candy' };

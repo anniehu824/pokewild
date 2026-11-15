@@ -73,7 +73,7 @@
     if(id==='first-challenge')return Math.min(1,state.trainerWins+state.gymWins+state.tournamentWins);
     return 0;
   }
-  function grantLoot(state,loot){for(const [key,n]of Object.entries(loot))if(['ultraBalls','superPotions','revives','rareCandies'].includes(key))state[key]+=n;}
+  function grantLoot(state,loot){for(const [key,n]of Object.entries(loot))if(['ultraBalls','quickBalls','netBalls','duskBalls','repeatBalls','superPotions','revives','rareCandies'].includes(key))state[key]+=n;}
   function befriend(state,id,level,byId,shiny=false){
     let p=state.owned.find(p=>p.id===id);
     if(!p){p=E.makeOwned(byId[id],level);state.owned.push(p);if(state.team.length<6)state.team.push(id);}

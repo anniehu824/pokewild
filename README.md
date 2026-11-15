@@ -18,7 +18,7 @@ You start with **Bulbasaur, Charmander, and Squirtle**, all at level 8.
 
 1. **Explore** a habitat for a surprise encounter, or use the **Pokédex** to find a particular Pokémon.
 2. Choose battle moves to lower its HP. **Gentle tap** always leaves at least 1 HP, even against Ghost Pokémon.
-3. Throw a **Poké Ball**. The game shows your current catch chance. Basic Poké Balls are unlimited.
+3. Throw a **Poké Ball**. The game shows your current catch chance. Basic Poké Balls are unlimited; Quick, Net, Dusk, Repeat, Great, and Ultra Balls offer different advantages.
 4. Use **My team** to choose your starting partner, bring up to six Pokémon, and swap anyone with your collection at camp.
 5. **Heal team** or visit **Backpack** to heal every Pokémon and restock to at least eight Potions and five Great Balls, for free.
 6. Look for **Ready to evolve** in My team or the results after a battle. Choose the next form, or wait and evolve later.
@@ -121,6 +121,10 @@ The **Trainer challenges** tab has eight opponents, ranging from Mia’s friendl
 | Earned item | How to use it |
 | --- | --- |
 | **Ultra Ball** | Select it under **Your Poké Balls** in a wild encounter. It improves the base catch chance by 75%, compared with a Great Ball’s 35%; the displayed chance includes difficulty and limits. |
+| **Quick Ball** | Doubles the catch chance on the first turn of an encounter. |
+| **Net Ball** | Doubles the catch chance against Water- and Bug-type Pokémon. |
+| **Dusk Ball** | Doubles the catch chance in Moonlit Grove and other dusk encounters. |
+| **Repeat Ball** | Doubles the catch chance when you have already befriended that species. |
 | **Super Potion** | Select it under **Healing item** during a battle. Restores the active Pokémon to full HP, then the opponent takes a turn. |
 | **Revive** | Use **Revive a teammate** during battle to restore a fainted travel buddy to half HP. Another Pokémon must still be standing; using it takes a turn. |
 | **Rare Candy** | Choose **Give a Rare Candy** in Backpack outside battle. One candy gives one travel buddy one level while preserving current XP, up to level 100. New evolution choices appear immediately when eligible. |
